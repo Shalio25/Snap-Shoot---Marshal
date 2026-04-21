@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Snap Shoot - Projek Marshal</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #222; color: white; }
+        .booth-container { position: relative; width: 640px; margin: 20px auto; border: 10px solid #fff; background: #000; border-radius: 8px; overflow: hidden; }
+        
+        /* Video akan berubah filternya sesuai pilihan */
+        video { width: 640px; height: 480px; display: block; transform: scaleX(-1); transition: filter 0.3s; }
+        
+        .frame-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; border: 15px solid rgba(255,255,255,0.8);
+            box-sizing: border-box;
+        }
+
+        .controls { margin-top: 20px; background: #333; padding: 15px; display: inline-block; border-radius: 15px; }
+        select { padding: 10px; border-radius: 5px; margin-right: 10px; cursor: pointer; }
+        button { padding: 12px 25px; font-size: 16px; font-weight: bold; cursor: pointer; background: #ff4757; color: white; border: none; border-radius: 50px; transition: 0.3s; }
+        button:hover { background: #ff6b81; transform: scale(1.05); }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #canvas { display: none; }
+        .result-container { margin-top: 30px; }
+        #result { border: 10px solid white; max-width: 300px; background: white; border-radius: 4px; }
+        
+        .timer { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; color: yellow; font-weight: bold; display: none; z-index: 10; }
+    </style>
+</head>
+<body>
+
+    <h1>📸 SNAP SHOOT</h1>
+    <p id="status">Pilih filter dan siapkan pose terbaikmu!</p>
+
+    <div class="booth-container">
+        <video id="video" autoplay playsinline></video>
+        <div class="frame-overlay"></div>
+        <div id="timer" class="timer">3</div>
+    </div>
+
+    <div class="controls">
+        <label>Filter: </label>
+        <select id="filterSelect" onchange="changePreviewFilter()">
+            <option value="none">Normal</option>
+            <option value="sepia(0.8) contrast(1.2)">Retro (Sepia)</option>
+            <option value="grayscale(100%)">Classic B&W</option>
+            <option value="saturate(2) contrast(1.1)">Vibrant</option>
+            <option value="hue-rotate(90deg)">Funky</option>
+            <option value="brightness(1.2) contrast(0.9) grayscale(0.2)">Aesthetic Soft</option>
+        </select>
+        <button id="startBtn" onclick="startSequence()">MULAI 2x FOTO</button>
+    </div>
+
+    <canvas id="canvas" width="400" height="800"></canvas>
+    
+    <div class="result-container">
+        <h3>Hasil Photostrip:</h3>
+        <img id="result" src="" alt="Hasil foto akan muncul di sini">
+        <br><br>
+        <button id="downloadBtn" style="display:none; background:#2ed573;" onclick="downloadImage()">SIMPAN FOTO</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const timerEl = document.getElementById('timer');
+        const statusEl = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const resultImg = document.getElementById('result');
+        const filterSelect = document.getElementById('filterSelect');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => alert("Kamera error: " + err));
+
+        // Fungsi agar preview kamera berubah saat filter dipilih
+        function changePreviewFilter() {
+            video.style.filter = filterSelect.value;
+        }
+
+        async function startSequence() {
+            startBtn.disabled = true;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Foto Pertama
+            await countdown(3);
+            captureToCanvas(ctx, 20, 20); 
+            statusEl.innerText = "Foto 1 tersimpan! Siap foto terakhir...";
+
+            // Foto Kedua
+            await countdown(3);
+            captureToCanvas(ctx, 20, 410); 
+            statusEl.innerText = "Keren! Snap Shoot kamu sudah jadi.";
+
+            const finalData = canvas.toDataURL('image/png');
+            resultImg.src = finalData;
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+            startBtn.disabled = false;
+        }
+
+        function countdown(seconds) {
+            return new Promise(resolve => {
+                let count = seconds;
+                timerEl.style.display = 'block';
+                timerEl.innerText = count;
+                const interval = setInterval(() => {
+                    count--;
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        timerEl.style.display = 'none';
+                        resolve();
+                    } else { timerEl.innerText = count; }
+                }, 1000);
+            });
+        }
+
+        function captureToCanvas(ctx, x, y) {
+            ctx.save();
+            
+            // --- BAGIAN PENTING: MENERAPKAN FILTER KE HASIL FOTO ---
+            ctx.filter = filterSelect.value;
+            
+            ctx.translate(x + 360, y); 
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, 360, 370);
+            
+            ctx.restore();
+        }
+
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.download = 'snap-shoot-retro.png';
+            link.href = resultImg.src;
+            link.click();
+        }
+    </script>
+</body>
+</html>
